@@ -72,10 +72,13 @@ if (isset($_GET['url'])) {
     // إجبار DOMDocument على قراءة الصفحة كـ UTF-8
     libxml_use_internal_errors(true);
     $dom = new DOMDocument();
-    // إضافة meta charset UTF-8 قبل تحميل HTML
     $dom->loadHTML('<meta charset="UTF-8">' . $html);
     libxml_clear_errors();
     $xpath = new DOMXPath($dom);
+
+    // جلب اسم المسلسل
+    $titleNode = $xpath->query("//span[contains(@class,'pull-left title')]");
+    $title = $titleNode->length > 0 ? trim($titleNode->item(0)->textContent) : null;
 
     // جلب الحلقات
     $nodes = $xpath->query("//a[contains(@class,'btn-ep')]");
@@ -101,6 +104,7 @@ if (isset($_GET['url'])) {
 
     // إخراج النتيجة
     $result = [
+        'title' => $title,
         'genre' => $genre,
         'quality' => $quality,
         'rating' => $rating,
@@ -110,6 +114,7 @@ if (isset($_GET['url'])) {
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
+
 
 
 // --- API روابط الفيديو ---
