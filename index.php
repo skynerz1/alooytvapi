@@ -147,13 +147,22 @@ if (isset($_GET['ep'])) {
     $posterNodes = $xpath->query("//div[contains(@class,'col-md-3') and contains(@class,'m-t-10')]/img");
     $poster = $posterNodes->length ? $posterNodes[0]->getAttribute('src') : "";
 
+    // الدومين الحالي تلقائيًا
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+    $domain = $protocol . $_SERVER['HTTP_HOST'];
+
+    // الرابط الجديد لمشاهدة الحلقة عبر watch.php
+    $watch_link = $domain . "/watch.php?link=" . urlencode($_SERVER['REQUEST_URI']);
+
     echo json_encode([
         'title' => $title,
         'poster' => $poster,
-        'videos' => $videos
+        'videos' => $videos,
+        'watch_link' => $watch_link
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
 }
+
 
 // لو ما في أي باراميتر صالح
 echo json_encode(['error'=>'No valid parameter provided']);
