@@ -62,31 +62,55 @@ if(isset($_GET['search'])){
 }
 
 // --- API استخراج الحلقات ---
-if(isset($_GET['url'])){
+if (isset($_GET['url'])) {
     $page_url = str_replace('\\', '', $_GET['url']);
     $page_url = urldecode($page_url);
 
     $html = @file_get_contents($page_url);
-    if(!$html) exit(json_encode(['error'=>'Failed to fetch data']));
+    if (!$html) exit(json_encode(['error' => 'Failed to fetch data'], JSON_UNESCAPED_UNICODE));
 
+    // إجبار DOMDocument على قراءة الصفحة كـ UTF-8
     libxml_use_internal_errors(true);
     $dom = new DOMDocument();
-    $dom->loadHTML($html);
+    // إضافة meta charset UTF-8 قبل تحميل HTML
+    $dom->loadHTML('<meta charset="UTF-8">' . $html);
     libxml_clear_errors();
     $xpath = new DOMXPath($dom);
 
+    // جلب الحلقات
     $nodes = $xpath->query("//a[contains(@class,'btn-ep')]");
     $episodes = [];
-    foreach($nodes as $node){
+    foreach ($nodes as $node) {
         $episodes[] = [
             'title' => trim($node->textContent),
             'link' => $node->getAttribute('href')
         ];
     }
 
-    echo json_encode($episodes, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    // جلب Genre
+    $genreNode = $xpath->query("//p[strong[contains(text(),'Genre')]]/a");
+    $genre = $genreNode->length > 0 ? trim($genreNode->item(0)->textContent) : null;
+
+    // جلب Quality
+    $qualityNode = $xpath->query("//p[strong[contains(text(),'Quality')]]/span");
+    $quality = $qualityNode->length > 0 ? trim($qualityNode->item(0)->textContent) : null;
+
+    // جلب Rating
+    $ratingNode = $xpath->query("//div[contains(@class,'rating_selection')]//strong[@id='rated']");
+    $rating = $ratingNode->length > 0 ? trim($ratingNode->item(0)->textContent) : null;
+
+    // إخراج النتيجة
+    $result = [
+        'genre' => $genre,
+        'quality' => $quality,
+        'rating' => $rating,
+        'episodes' => $episodes
+    ];
+
+    echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
+
 
 // --- API روابط الفيديو ---
 if(isset($_GET['ep'])){
