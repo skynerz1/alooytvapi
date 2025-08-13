@@ -69,7 +69,6 @@ if (isset($_GET['url'])) {
     $html = @file_get_contents($page_url);
     if (!$html) exit(json_encode(['error' => 'Failed to fetch data'], JSON_UNESCAPED_UNICODE));
 
-    // إجبار DOMDocument على قراءة الصفحة كـ UTF-8
     libxml_use_internal_errors(true);
     $dom = new DOMDocument();
     $dom->loadHTML('<meta charset="UTF-8">' . $html);
@@ -102,46 +101,59 @@ if (isset($_GET['url'])) {
     $ratingNode = $xpath->query("//div[contains(@class,'rating_selection')]//strong[@id='rated']");
     $rating = $ratingNode->length > 0 ? trim($ratingNode->item(0)->textContent) : null;
 
-    // إخراج النتيجة
-    $result = [
+    echo json_encode([
         'title' => $title,
         'genre' => $genre,
         'quality' => $quality,
         'rating' => $rating,
         'episodes' => $episodes
-    ];
-
-    echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 
-
-
 // --- API روابط الفيديو ---
-if(isset($_GET['ep'])){
+if (isset($_GET['ep'])) {
     $ep_url = str_replace('\\', '', $_GET['ep']);
     $ep_url = urldecode($ep_url);
 
     $html = @file_get_contents($ep_url);
-    if(!$html) exit(json_encode(['error'=>'Failed to fetch data']));
+    if (!$html) exit(json_encode(['error'=>'Failed to fetch data']));
+
+    if (!mb_detect_encoding($html, 'UTF-8', true)) {
+        $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+    }
 
     libxml_use_internal_errors(true);
     $dom = new DOMDocument();
-    $dom->loadHTML($html);
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
     libxml_clear_errors();
     $xpath = new DOMXPath($dom);
 
+    // روابط الفيديو
     $nodes = $xpath->query("//video/source");
     $videos = [];
-    foreach($nodes as $node){
+    foreach ($nodes as $node) {
         $src = $node->getAttribute('src');
-        $src = str_replace('\\', '', $src); // إزالة backslashes
-        $src = preg_replace('#(?<!:)//+#', '/', $src); // إزالة // زائد
-        $videos[] = $src;
+        $src = str_replace('\\', '', $src);
+        $src = preg_replace('#(?<!:)//+#', '/', $src);
+        if ($src) $videos[] = $src;
     }
 
-    echo json_encode($videos, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    // العنوان
+    $titleNodes = $xpath->query("//title");
+    $title = $titleNodes->length ? trim($titleNodes[0]->textContent) : "";
+
+    // البوستر
+    $posterNodes = $xpath->query("//div[contains(@class,'col-md-3') and contains(@class,'m-t-10')]/img");
+    $poster = $posterNodes->length ? $posterNodes[0]->getAttribute('src') : "";
+
+    echo json_encode([
+        'title' => $title,
+        'poster' => $poster,
+        'videos' => $videos
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
+// لو ما في أي باراميتر صالح
 echo json_encode(['error'=>'No valid parameter provided']);
